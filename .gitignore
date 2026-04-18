@@ -1,0 +1,6 @@
+ids-env/
+__pycache__/
+*.pyc
+output/alerts.log
+wireshark_ids_log.txt
+logs/auth.log

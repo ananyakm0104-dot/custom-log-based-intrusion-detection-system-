@@ -1,0 +1,1249 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Custom Log-Based IDS — Cybersecurity Training Project</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green: #00ff88;
+  --green-dim: #1D9E75;
+  --green-dark: #0a3d2e;
+  --red: #ff4455;
+  --amber: #ffaa00;
+  --blue: #00aaff;
+  --cyan: #00e5ff;
+  --bg: #070b0f;
+  --bg2: #0d1218;
+  --bg3: #121920;
+  --surface: #161e27;
+  --border: #1e2d3d;
+  --text: #c8d8e8;
+  --muted: #5a7a8a;
+  --mono: 'JetBrains Mono', monospace;
+  --display: 'Syne', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,136,0.015) 2px, rgba(0,255,136,0.015) 4px);
+  pointer-events: none;
+  z-index: 9999;
+}
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  background: rgba(7,11,15,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-logo {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--green);
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+.nav-logo span { color: var(--muted); }
+.nav-links {
+  display: flex;
+  gap: 2rem;
+  list-style: none;
+}
+.nav-links a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--green); }
+.nav-links a.live-link {
+  color: var(--cyan);
+  border: 1px solid rgba(0,229,255,0.3);
+  padding: 4px 12px;
+  border-radius: 4px;
+  animation: livePulse 2s ease-in-out infinite;
+}
+@keyframes livePulse {
+  0%,100% { border-color: rgba(0,229,255,0.3); }
+  50% { border-color: rgba(0,229,255,0.8); }
+}
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8rem 2rem 4rem;
+  position: relative;
+  overflow: hidden;
+}
+.hero-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,255,136,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,136,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 30%, transparent 100%);
+}
+.hero-glow {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,255,136,0.08) 0%, transparent 70%);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.hero-content { position: relative; max-width: 900px; margin: 0 auto; width: 100%; }
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,255,136,0.08);
+  border: 1px solid rgba(0,255,136,0.2);
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 11px;
+  color: var(--green);
+  letter-spacing: 0.1em;
+  margin-bottom: 2rem;
+  animation: fadeUp 0.6s ease both;
+}
+.hero-badge::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+.hero-title {
+  font-family: var(--display);
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: #fff;
+  margin-bottom: 1.5rem;
+  animation: fadeUp 0.6s 0.1s ease both;
+}
+.hero-title .accent { color: var(--green); }
+.hero-title .dim { color: var(--muted); }
+.hero-desc {
+  font-size: 15px;
+  color: var(--muted);
+  max-width: 560px;
+  line-height: 1.8;
+  margin-bottom: 2.5rem;
+  animation: fadeUp 0.6s 0.2s ease both;
+}
+.hero-stats {
+  display: flex;
+  gap: 2.5rem;
+  flex-wrap: wrap;
+  animation: fadeUp 0.6s 0.3s ease both;
+}
+.stat { border-left: 2px solid var(--green-dim); padding-left: 1rem; }
+.stat-num { font-family: var(--display); font-size: 2rem; font-weight: 800; color: var(--green); line-height: 1; }
+.stat-label { font-size: 11px; color: var(--muted); letter-spacing: 0.05em; margin-top: 4px; }
+.terminal-wrap {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 420px;
+  animation: fadeUp 0.6s 0.4s ease both;
+}
+@media (max-width: 1000px) { .terminal-wrap { display: none; } }
+.terminal {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 12px;
+}
+.terminal-bar {
+  background: var(--bg3);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.terminal-title { color: var(--muted); margin-left: 8px; font-size: 11px; }
+.terminal-body { padding: 1rem; line-height: 2; }
+.t-green { color: var(--green); }
+.t-red { color: var(--red); }
+.t-amber { color: var(--amber); }
+.t-cyan { color: var(--blue); }
+.t-muted { color: var(--muted); }
+.t-white { color: #fff; }
+.t-blink::after { content: '█'; animation: blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+section { padding: 6rem 2rem; }
+.container { max-width: 1000px; margin: 0 auto; }
+.section-label {
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: var(--green);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+.section-title {
+  font-family: var(--display);
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.02em;
+  margin-bottom: 1rem;
+  line-height: 1.1;
+}
+.section-sub {
+  color: var(--muted);
+  font-size: 14px;
+  max-width: 540px;
+  line-height: 1.8;
+  margin-bottom: 3rem;
+}
+.ids-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+.ids-cell { background: var(--surface); padding: 1.5rem; }
+.ids-cell-label { font-size: 10px; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; margin-bottom: 0.5rem; }
+.ids-cell-value { font-family: var(--display); font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; }
+.ids-cell-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+.analogy-box {
+  background: rgba(0,255,136,0.05);
+  border: 1px solid rgba(0,255,136,0.15);
+  border-radius: 8px;
+  padding: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+.analogy-icon { font-size: 2rem; flex-shrink: 0; line-height: 1; }
+.analogy-text { font-size: 13px; color: var(--text); line-height: 1.7; }
+.analogy-text strong { color: var(--green); font-weight: 500; }
+.flow-steps { display: flex; flex-direction: column; gap: 0; position: relative; }
+.flow-steps::before {
+  content: '';
+  position: absolute;
+  left: 23px; top: 46px; bottom: 46px;
+  width: 1px;
+  background: linear-gradient(to bottom, var(--green-dim), transparent);
+}
+.flow-step { display: flex; gap: 1.5rem; align-items: flex-start; padding: 1.5rem 0; }
+.step-num {
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  background: var(--green-dark);
+  border: 1px solid var(--green-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--green);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+.step-content { flex: 1; padding-top: 10px; }
+.step-title { font-family: var(--display); font-weight: 700; font-size: 1rem; color: #fff; margin-bottom: 4px; }
+.step-desc { font-size: 12px; color: var(--muted); line-height: 1.7; }
+.step-code { margin-top: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 4px; padding: 8px 12px; font-size: 11px; color: var(--green); }
+.attacks-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+.attack-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.2s;
+  cursor: default;
+}
+.attack-card:hover { transform: translateY(-2px); }
+.attack-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.attack-card.critical::before { background: var(--red); }
+.attack-card.high::before { background: var(--amber); }
+.attack-card.medium::before { background: var(--blue); }
+.attack-card:hover.critical { border-color: rgba(255,68,85,0.4); }
+.attack-card:hover.high { border-color: rgba(255,170,0,0.4); }
+.attack-card:hover.medium { border-color: rgba(0,170,255,0.4); }
+.attack-sev { font-size: 10px; font-weight: 500; letter-spacing: 0.1em; padding: 2px 8px; border-radius: 3px; display: inline-block; margin-bottom: 10px; }
+.sev-critical { background: rgba(255,68,85,0.15); color: var(--red); }
+.sev-high { background: rgba(255,170,0,0.15); color: var(--amber); }
+.sev-medium { background: rgba(0,170,255,0.15); color: var(--blue); }
+.attack-name { font-family: var(--display); font-weight: 700; font-size: 1rem; color: #fff; margin-bottom: 6px; }
+.attack-desc { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 10px; }
+.attack-pattern { font-size: 11px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; color: var(--green); word-break: break-all; }
+.attack-threshold { font-size: 11px; color: var(--muted); margin-top: 6px; }
+.file-tree { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.file-tree-bar { background: var(--bg3); padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; }
+.file-tree-body { padding: 1.25rem 1.5rem; font-size: 13px; line-height: 2.2; }
+.f-folder { color: var(--amber); }
+.f-py { color: var(--blue); }
+.f-json { color: var(--green); }
+.f-log { color: var(--muted); }
+.f-comment { color: #2a4a3a; font-size: 11px; }
+.f-indent { padding-left: 1.5rem; }
+.f-indent2 { padding-left: 3rem; }
+.cmd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 700px) { .cmd-grid { grid-template-columns: 1fr; } }
+.cmd-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.cmd-card-title { background: var(--bg3); padding: 10px 14px; font-size: 11px; letter-spacing: 0.08em; color: var(--muted); border-bottom: 1px solid var(--border); }
+.cmd-card-body { padding: 1rem; }
+.cmd-line { display: flex; gap: 10px; align-items: baseline; padding: 4px 0; }
+.cmd-prompt { color: var(--green); flex-shrink: 0; }
+.cmd-text { color: var(--text); font-size: 12px; word-break: break-all; }
+.cmd-comment { color: var(--muted); font-size: 11px; padding: 2px 0 2px 20px; }
+.func-list { display: flex; flex-direction: column; gap: 12px; }
+.func-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; display: flex; gap: 1.5rem; align-items: flex-start; transition: border-color 0.2s; }
+.func-item:hover { border-color: rgba(0,255,136,0.2); }
+.func-num { font-family: var(--mono); font-size: 1.2rem; color: var(--green-dim); line-height: 1; flex-shrink: 0; border: 1px solid var(--green-dark); border-radius: 6px; display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; }
+.func-name { font-family: var(--mono); font-size: 14px; color: var(--blue); margin-bottom: 4px; }
+.func-desc { font-size: 12px; color: var(--muted); line-height: 1.7; }
+.concepts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+.concept-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; }
+.concept-term { font-family: var(--display); font-weight: 700; font-size: 1rem; color: var(--green); margin-bottom: 6px; }
+.concept-def { font-size: 12px; color: var(--muted); line-height: 1.6; }
+footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center; color: var(--muted); font-size: 12px; }
+footer strong { color: var(--green); }
+.section-divider { height: 1px; background: linear-gradient(to right, transparent, var(--border), transparent); margin: 0 2rem; }
+.reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+/* ============================================
+   LIVE WIRESHARK IDS SECTION — NEW
+   ============================================ */
+#live { background: linear-gradient(180deg, var(--bg) 0%, rgba(0,229,255,0.02) 50%, var(--bg) 100%); }
+
+.live-header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,229,255,0.08);
+  border: 1px solid rgba(0,229,255,0.3);
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 11px;
+  color: var(--cyan);
+  letter-spacing: 0.1em;
+  margin-bottom: 1rem;
+}
+.live-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+  animation: pulse 1.2s infinite;
+}
+
+/* Status bar */
+.live-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--cyan);
+  padding: 12px 20px;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  font-size: 12px;
+}
+.live-status-left { display: flex; align-items: center; gap: 10px; color: var(--cyan); letter-spacing: 1px; }
+.live-status-right { color: var(--muted); }
+
+/* Stats row */
+.live-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 700px) { .live-stats { grid-template-columns: repeat(2, 1fr); } }
+
+.live-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s;
+}
+.live-stat:hover { transform: translateY(-2px); }
+.live-stat::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.live-stat.s-total::after { background: var(--cyan); }
+.live-stat.s-ssh::after { background: var(--green); }
+.live-stat.s-arp::after { background: var(--amber); }
+.live-stat.s-scan::after { background: var(--red); }
+
+.live-stat-icon { font-size: 1.5rem; margin-bottom: 8px; }
+.live-stat-num {
+  font-family: var(--display);
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.live-stat.s-total .live-stat-num { color: var(--cyan); }
+.live-stat.s-ssh .live-stat-num { color: var(--green); }
+.live-stat.s-arp .live-stat-num { color: var(--amber); }
+.live-stat.s-scan .live-stat-num { color: var(--red); }
+.live-stat-label { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 6px; }
+
+/* Main live grid */
+.live-grid {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 16px;
+}
+@media (max-width: 800px) { .live-grid { grid-template-columns: 1fr; } }
+
+/* Alert feed panel */
+.live-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.live-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+}
+.live-panel-title { font-size: 11px; color: var(--cyan); letter-spacing: 2px; text-transform: uppercase; }
+.live-panel-badge {
+  background: rgba(0,229,255,0.1);
+  border: 1px solid rgba(0,229,255,0.3);
+  color: var(--cyan);
+  font-size: 10px;
+  padding: 2px 10px;
+  border-radius: 20px;
+  letter-spacing: 1px;
+}
+
+.alert-feed {
+  height: 420px;
+  overflow-y: auto;
+  padding: 10px;
+}
+.alert-feed::-webkit-scrollbar { width: 3px; }
+.alert-feed::-webkit-scrollbar-track { background: var(--bg); }
+.alert-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.alert-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  margin-bottom: 5px;
+  border-left: 2px solid transparent;
+  font-size: 11px;
+  line-height: 1.6;
+  animation: slideIn 0.3s ease;
+  word-break: break-all;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.alert-item.ssh { background: rgba(0,255,136,0.04); border-left-color: var(--green); }
+.alert-item.arp { background: rgba(255,170,0,0.04); border-left-color: var(--amber); }
+.alert-item.portscan { background: rgba(255,68,85,0.06); border-left-color: var(--red); animation: flashRed 0.5s ease; }
+@keyframes flashRed {
+  0% { background: rgba(255,68,85,0.2); }
+  100% { background: rgba(255,68,85,0.06); }
+}
+.alert-icon { flex-shrink: 0; margin-top: 1px; }
+.alert-text { color: var(--text); }
+
+.no-alerts-msg {
+  text-align: center;
+  color: var(--muted);
+  padding: 60px 20px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  line-height: 2;
+}
+
+/* Sidebar */
+.live-sidebar { display: flex; flex-direction: column; gap: 12px; }
+
+.live-devices {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.live-devices-title {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--cyan);
+  letter-spacing: 2px;
+  background: var(--bg3);
+}
+.device-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+.device-item:last-child { border-bottom: none; }
+.device-emoji { font-size: 1.2rem; flex-shrink: 0; }
+.device-info { flex: 1; }
+.device-name { color: var(--text); margin-bottom: 2px; }
+.device-ip { color: var(--muted); font-size: 10px; }
+.device-online { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 1.5s infinite; flex-shrink: 0; }
+
+/* Filter buttons */
+.live-filters {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.live-filters-title {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--cyan);
+  letter-spacing: 2px;
+  background: var(--bg3);
+}
+.filter-btn {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+}
+.filter-btn:last-child { border-bottom: none; }
+.filter-btn:hover { color: var(--cyan); background: rgba(0,229,255,0.04); }
+.filter-btn.active { color: var(--cyan); background: rgba(0,229,255,0.06); border-left: 2px solid var(--cyan); }
+
+/* How to run box */
+.live-howto {
+  background: rgba(0,229,255,0.04);
+  border: 1px solid rgba(0,229,255,0.15);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-top: 1.5rem;
+}
+.live-howto-title { font-size: 11px; color: var(--cyan); letter-spacing: 2px; margin-bottom: 1rem; }
+.howto-step { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px; font-size: 12px; }
+.howto-num { color: var(--cyan); flex-shrink: 0; font-weight: 700; }
+.howto-cmd { color: var(--green); background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 2px 8px; font-size: 11px; }
+.howto-desc { color: var(--muted); margin-top: 2px; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">IDS<span>/project</span></a>
+  <ul class="nav-links">
+    <li><a href="#what">What is IDS</a></li>
+    <li><a href="#how">How it Works</a></li>
+    <li><a href="#attacks">Attacks</a></li>
+    <li><a href="#build">Build It</a></li>
+    <li><a href="#live" class="live-link">⚡ Live Alerts</a></li>
+    <li><a href="#concepts">Concepts</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-content">
+    <div class="hero-badge">CYBERSECURITY TRAINING PROJECT</div>
+    <h1 class="hero-title">
+      Custom<br>
+      <span class="accent">Log-Based</span><br>
+      <span class="dim">IDS</span>
+    </h1>
+    <p class="hero-desc">
+      Build a real Intrusion Detection System from scratch using Python.
+      Monitor log files, detect attacks in real time, and fire alerts —
+      just like professional tools Snort and Suricata.
+    </p>
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-num">6</div>
+        <div class="stat-label">Attack Rules</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">5</div>
+        <div class="stat-label">Python Functions</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">~3h</div>
+        <div class="stat-label">To Complete</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">0</div>
+        <div class="stat-label">Prior Experience Needed</div>
+      </div>
+    </div>
+  </div>
+  <div class="terminal-wrap">
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="dot" style="background:#ff5f57"></div>
+        <div class="dot" style="background:#ffbd2e"></div>
+        <div class="dot" style="background:#28c840"></div>
+        <span class="terminal-title">ids.py — running</span>
+      </div>
+      <div class="terminal-body">
+        <div class="t-green">============================================================</div>
+        <div class="t-green">&nbsp;&nbsp; Custom Log-Based IDS — STARTED</div>
+        <div class="t-green">============================================================</div>
+        <div class="t-muted">&nbsp; Monitoring&nbsp;&nbsp;: logs/auth.log</div>
+        <div class="t-muted">&nbsp; Rules loaded : 6</div>
+        <div class="t-muted">&nbsp; Alerts saved : output/alerts.log</div>
+        <div class="t-green">============================================================</div>
+        <div>&nbsp;</div>
+        <div class="t-muted">[LOG] Jan 13 10:01:02 sshd: Accepted password for deploy</div>
+        <div class="t-muted">[LOG] Jan 13 10:01:05 sshd: Failed password for root ...</div>
+        <div class="t-muted">[LOG] Jan 13 10:01:08 sshd: Failed password for root ...</div>
+        <div class="t-muted">[LOG] Jan 13 10:01:11 sshd: Failed password for root ...</div>
+        <div>&nbsp;</div>
+        <div class="t-red">============================================================</div>
+        <div class="t-red">[ALERT] 2026-03-15 10:01:11</div>
+        <div class="t-amber">Severity : HIGH</div>
+        <div class="t-white">Rule&nbsp;&nbsp;&nbsp;&nbsp; : SSH Brute Force</div>
+        <div class="t-muted">Log Line : Failed password for root from 192.168.99.45</div>
+        <div class="t-red">============================================================</div>
+        <div>&nbsp;</div>
+        <div class="t-muted t-blink">[LOG] waiting for new entries...</div>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="section-divider"></div>
+
+<!-- WHAT IS IDS -->
+<section id="what">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">// 01 — introduction</div>
+      <h2 class="section-title">What is an IDS?</h2>
+      <p class="section-sub">An Intrusion Detection System monitors a computer for suspicious activity and raises an alert when something dangerous is found.</p>
+    </div>
+    <div class="ids-grid reveal">
+      <div class="ids-cell">
+        <div class="ids-cell-label">Firewall</div>
+        <div class="ids-cell-value">Blocks the door</div>
+        <div class="ids-cell-desc">Stops people from getting in. Does not watch what happens inside.</div>
+      </div>
+      <div class="ids-cell">
+        <div class="ids-cell-label">IDS — our project</div>
+        <div class="ids-cell-value">Watches and alerts</div>
+        <div class="ids-cell-desc">Detects suspicious activity inside and raises an alarm. Does not block.</div>
+      </div>
+      <div class="ids-cell">
+        <div class="ids-cell-label">IPS</div>
+        <div class="ids-cell-value">Detects and blocks</div>
+        <div class="ids-cell-desc">Like an IDS but also automatically stops the attack.</div>
+      </div>
+      <div class="ids-cell">
+        <div class="ids-cell-label">SIEM</div>
+        <div class="ids-cell-value">Collects everything</div>
+        <div class="ids-cell-desc">Gathers logs from many systems and analyzes them together.</div>
+      </div>
+    </div>
+    <div class="analogy-box reveal">
+      <div class="analogy-icon">🏦</div>
+      <div class="analogy-text">
+        Think of a bank: the <strong>locked front door = firewall</strong> (blocks people from entering).
+        The <strong>CCTV camera + security guard = IDS</strong> (watches everything happening inside and shouts when something is wrong).
+        The <strong>guard who physically stops someone = IPS</strong>.
+        Our project builds the CCTV + guard — it watches log files and fires alerts.
+      </div>
+    </div>
+  </div>
+</section>
+<div class="section-divider"></div>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">// 02 — mechanism</div>
+      <h2 class="section-title">How the IDS works</h2>
+      <p class="section-sub">Five steps happen every time a new line appears in the log file.</p>
+    </div>
+    <div class="flow-steps reveal">
+      <div class="flow-step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Log file is written by the OS</div>
+          <div class="step-desc">Every login, command, and connection is automatically recorded by Linux into /var/log/auth.log. The IDS watches this file.</div>
+          <div class="step-code">tail -f /var/log/auth.log</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">New line detected by monitor()</div>
+          <div class="step-desc">The IDS reads the file continuously. The moment a new line appears, it picks it up immediately — just like tail -f in the terminal.</div>
+          <div class="step-code">line = f.readline()</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Pattern matched by regex</div>
+          <div class="step-desc">Every line is checked against all 6 rules using regular expressions. If a rule pattern is found in the line, the hit counter increases.</div>
+          <div class="step-code">re.search(rule["pattern"], line, re.IGNORECASE)</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-title">Threshold checked</div>
+          <div class="step-desc">Not every single match fires an alert. The IDS waits until the count reaches the threshold. SSH Brute Force needs 3 hits — one typo won't trigger it.</div>
+          <div class="step-code">if counts[rule["name"]] >= rule["threshold"]:</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <div class="step-title">Alert fired and saved</div>
+          <div class="step-desc">A colored alert prints to the terminal with timestamp, severity, rule name, and the exact log line. It is also written to output/alerts.log permanently.</div>
+          <div class="step-code">[ALERT] 2026-03-15 10:01:11 | HIGH | SSH Brute Force</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="section-divider"></div>
+
+<!-- ATTACK TYPES -->
+<section id="attacks">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">// 03 — detection rules</div>
+      <h2 class="section-title">Attack types detected</h2>
+      <p class="section-sub">Six rules are defined in rules.json. Each has a pattern, threshold, and severity level.</p>
+    </div>
+    <div class="attacks-grid reveal">
+      <div class="attack-card critical">
+        <div class="attack-sev sev-critical">CRITICAL</div>
+        <div class="attack-name">SQL Injection</div>
+        <div class="attack-desc">Attacker puts SQL code in a URL to steal or destroy the database. Even one attempt fires an alert.</div>
+        <div class="attack-pattern">UNION|SELECT|DROP TABLE|'--</div>
+        <div class="attack-threshold">Threshold: 1 hit — immediate alert</div>
+      </div>
+      <div class="attack-card high">
+        <div class="attack-sev sev-high">HIGH</div>
+        <div class="attack-name">SSH Brute Force</div>
+        <div class="attack-desc">Automated script guessing passwords on the SSH login. Most common attack on public servers.</div>
+        <div class="attack-pattern">Failed password</div>
+        <div class="attack-threshold">Threshold: 3 hits — allows for honest typos</div>
+      </div>
+      <div class="attack-card high">
+        <div class="attack-sev sev-high">HIGH</div>
+        <div class="attack-name">Unauthorized Sudo</div>
+        <div class="attack-desc">A user tries to run admin commands without permission. Insider threat indicator.</div>
+        <div class="attack-pattern">NOT in sudoers</div>
+        <div class="attack-threshold">Threshold: 1 hit — immediate alert</div>
+      </div>
+      <div class="attack-card medium">
+        <div class="attack-sev sev-medium">MEDIUM</div>
+        <div class="attack-name">Directory Traversal</div>
+        <div class="attack-desc">Attacker uses ../ in URLs to escape the web root and read system files like /etc/passwd.</div>
+        <div class="attack-pattern">(\.\./){2,}</div>
+        <div class="attack-threshold">Threshold: 1 hit — immediate alert</div>
+      </div>
+      <div class="attack-card medium">
+        <div class="attack-sev sev-medium">MEDIUM</div>
+        <div class="attack-name">Root Login Attempt</div>
+        <div class="attack-desc">Direct login attempts targeting the root account. Should never happen on a hardened server.</div>
+        <div class="attack-pattern">Invalid user root</div>
+        <div class="attack-threshold">Threshold: 1 hit — immediate alert</div>
+      </div>
+      <div class="attack-card medium">
+        <div class="attack-sev sev-medium">MEDIUM</div>
+        <div class="attack-name">Port Scan</div>
+        <div class="attack-desc">Rapid connections to many ports — attacker mapping what services are running on the system.</div>
+        <div class="attack-pattern">Connection closed.*preauth</div>
+        <div class="attack-threshold">Threshold: 5 hits — rapid fire pattern</div>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="section-divider"></div>
+
+<!-- BUILD IT -->
+<section id="build">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">// 04 — setup</div>
+      <h2 class="section-title">Build it yourself</h2>
+      <p class="section-sub">Run these commands in order. Every session starts with the same 3 commands.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;" class="reveal">
+      <div style="grid-column:1/-1;">
+        <div class="file-tree">
+          <div class="file-tree-bar">
+            <div class="dot" style="background:#ff5f57"></div>
+            <div class="dot" style="background:#ffbd2e"></div>
+            <div class="dot" style="background:#28c840"></div>
+            <span style="color:var(--muted);font-size:11px;margin-left:8px;">project structure</span>
+          </div>
+          <div class="file-tree-body">
+            <div class="f-folder">custom-ids/</div>
+            <div class="f-indent"><span class="f-py">IDS.py</span> <span class="f-comment">← main IDS engine</span></div>
+            <div class="f-indent"><span class="f-py">wireshark_ids.py</span> <span class="f-comment">← live network IDS</span></div>
+            <div class="f-indent"><span class="f-py">app.py</span> <span class="f-comment">← Flask web server</span></div>
+            <div class="f-indent"><span class="f-py">generate_fake_logs.py</span> <span class="f-comment">← attack simulator</span></div>
+            <div class="f-indent"><span class="f-folder">ids-env/</span> <span class="f-comment">← virtual environment</span></div>
+            <div class="f-indent"><span class="f-folder">logs/</span></div>
+            <div class="f-indent2"><span class="f-log">auth.log</span> <span class="f-comment">← log file being monitored</span></div>
+            <div class="f-indent2"><span class="f-log">wireshark_ids_log.txt</span> <span class="f-comment">← live packet alerts</span></div>
+            <div class="f-indent"><span class="f-folder">rules/</span></div>
+            <div class="f-indent2"><span class="f-json">rules.json</span> <span class="f-comment">← detection rules</span></div>
+            <div class="f-indent"><span class="f-folder">output/</span></div>
+            <div class="f-indent2"><span class="f-log">alerts.log</span> <span class="f-comment">← alerts saved here</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cmd-grid reveal">
+      <div class="cmd-card">
+        <div class="cmd-card-title">FIRST TIME SETUP</div>
+        <div class="cmd-card-body">
+          <div class="cmd-line"><span class="cmd-prompt">$</span><span class="cmd-text">mkdir -p ~/ctf/custom-ids/{logs,rules,output}</span></div>
+          <div class="cmd-line"><span class="cmd-prompt">$</span><span class="cmd-text">cd ~/ctf/custom-ids</span></div>
+          <div class="cmd-line"><span class="cmd-prompt">$</span><span class="cmd-text">python3 -m venv ids-env</span></div>
+          <div class="cmd-line"><span class="cmd-prompt">$</span><span class="cmd-text">source ids-env/bin/activate</span></div>
+          <div class="cmd-line"><span class="cmd-prompt">$</span><span class="cmd-text">pip install watchdog colorama pyshark flask</span></div>
+        </div>
+      </div>
+      <div class="cmd-card">
+        <div class="cmd-card-title">EVERY SESSION</div>
+        <div class="cmd-card-body">
+          <div class="cmd-line"><span class="cmd-prompt">$</span><span class="cmd-text">cd ~/ctf/custom-ids</span></div>
+          <div class="cmd-line"><span class="cmd-prompt">$</span><span class="cmd-text">source ids-env/bin/activate</span></div>
+          <div class="cmd-line"><span class="cmd-prompt">$</span><span class="cmd-text">python3 IDS.py</span></div>
+          <div class="cmd-comment"># IDS is now running — watching logs/auth.log</div>
+        </div>
+      </div>
+      <div class="cmd-card">
+        <div class="cmd-card-title">RUN LIVE WIRESHARK IDS</div>
+        <div class="cmd-card-body">
+          <div class="cmd-line"><span class="cmd-prompt">$</span><span class="cmd-text">sudo ~/ctf/custom-ids/ids-env/bin/python3 wireshark_ids.py</span></div>
+          <div class="cmd-comment"># Terminal 2 — start Flask server</div>
+          <div class="cmd-line"><span class="cmd-prompt">$</span><span class="cmd-text">python3 app.py</span></div>
+          <div class="cmd-comment"># Open browser → http://localhost:5000</div>
+        </div>
+      </div>
+      <div class="cmd-card">
+        <div class="cmd-card-title">CHECK SAVED ALERTS + CLOSE</div>
+        <div class="cmd-card-body">
+          <div class="cmd-line"><span class="cmd-prompt">$</span><span class="cmd-text">cat output/alerts.log</span></div>
+          <div class="cmd-line"><span class="cmd-prompt">$</span><span class="cmd-text">cat wireshark_ids_log.txt</span></div>
+          <div class="cmd-comment"># stop IDS</div>
+          <div class="cmd-line"><span class="cmd-prompt">$</span><span class="cmd-text">Ctrl+C</span></div>
+          <div class="cmd-line"><span class="cmd-prompt">$</span><span class="cmd-text">deactivate</span></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:3rem;" class="reveal">
+      <div class="section-label">// ids.py — five functions</div>
+      <div class="func-list" style="margin-top:1.5rem;">
+        <div class="func-item">
+          <div class="func-num">1</div>
+          <div>
+            <div class="func-name">load_rules(path)</div>
+            <div class="func-desc">Opens rules/rules.json and converts it into a Python list. Each item in the list is one detection rule with name, pattern, threshold, and severity.</div>
+          </div>
+        </div>
+        <div class="func-item">
+          <div class="func-num">2</div>
+          <div>
+            <div class="func-name">analyze_line(line, rules, counts)</div>
+            <div class="func-desc">Takes one log line and checks it against every rule using regex. If a pattern matches, the hit counter for that rule goes up by one. If the counter hits the threshold, it calls alert().</div>
+          </div>
+        </div>
+        <div class="func-item">
+          <div class="func-num">3</div>
+          <div>
+            <div class="func-name">alert(rule, line)</div>
+            <div class="func-desc">Prints a colored alert to the terminal. RED for CRITICAL, YELLOW for HIGH, CYAN for MEDIUM. Shows timestamp, severity, rule name, and the exact log line that triggered it.</div>
+          </div>
+        </div>
+        <div class="func-item">
+          <div class="func-num">4</div>
+          <div>
+            <div class="func-name">save_alert(timestamp, severity, name, line)</div>
+            <div class="func-desc">Writes every alert permanently to output/alerts.log. This means even after closing the terminal, you can review all alerts that fired during the session.</div>
+          </div>
+        </div>
+        <div class="func-item">
+          <div class="func-num">5</div>
+          <div>
+            <div class="func-name">monitor(log_path, rules)</div>
+            <div class="func-desc">The main loop. Opens the log file, jumps to the end, and reads new lines as they appear — exactly like the tail -f command. Runs forever until Ctrl+C is pressed.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="section-divider"></div>
+
+<!-- ============================================
+     LIVE WIRESHARK IDS SECTION — NEW
+     ============================================ -->
+<section id="live">
+  <div class="container">
+    <div class="reveal">
+      <div class="live-header-badge">
+        <div class="live-dot"></div>
+        WIRESHARK LIVE NETWORK IDS
+      </div>
+      <div class="section-label">// 05 — live detection</div>
+      <h2 class="section-title">Live Alert Dashboard</h2>
+      <p class="section-sub">Real-time network packet analysis powered by Wireshark + PyShark. Alerts update automatically every 3 seconds.</p>
+    </div>
+
+    <!-- Status bar -->
+    <div class="live-status reveal">
+      <div class="live-status-left">
+        <div class="live-dot"></div>
+        <span>⬡ MONITORING INTERFACE: wlp1s0 / any</span>
+      </div>
+      <div class="live-status-right" id="live-clock">--:--:--</div>
+    </div>
+
+    <!-- Stats -->
+    <div class="live-stats reveal">
+      <div class="live-stat s-total">
+        <div class="live-stat-icon">📡</div>
+        <div class="live-stat-num" id="stat-total">0</div>
+        <div class="live-stat-label">Total Alerts</div>
+      </div>
+      <div class="live-stat s-ssh">
+        <div class="live-stat-icon">🔐</div>
+        <div class="live-stat-num" id="stat-ssh">0</div>
+        <div class="live-stat-label">SSH Attempts</div>
+      </div>
+      <div class="live-stat s-arp">
+        <div class="live-stat-icon">⚠️</div>
+        <div class="live-stat-num" id="stat-arp">0</div>
+        <div class="live-stat-label">ARP Packets</div>
+      </div>
+      <div class="live-stat s-scan">
+        <div class="live-stat-icon">🚨</div>
+        <div class="live-stat-num" id="stat-scan">0</div>
+        <div class="live-stat-label">Port Scans</div>
+      </div>
+    </div>
+
+    <!-- Main grid -->
+    <div class="live-grid reveal">
+
+      <!-- Alert feed -->
+      <div class="live-panel">
+        <div class="live-panel-header">
+          <span class="live-panel-title">⚡ Live Alert Feed</span>
+          <span class="live-panel-badge" id="alert-badge">0 ALERTS</span>
+        </div>
+        <div class="alert-feed" id="alert-feed">
+          <div class="no-alerts-msg">
+            ◈ MONITORING NETWORK TRAFFIC...<br>
+            Start Flask server to see live alerts.<br><br>
+            <span style="color:var(--green);font-size:10px;">python3 app.py</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="live-sidebar">
+
+        <!-- Detected devices -->
+        <div class="live-devices">
+          <div class="live-devices-title">◈ NETWORK DEVICES</div>
+          <div class="device-item">
+            <div class="device-emoji">💻</div>
+            <div class="device-info">
+              <div class="device-name">Your Device</div>
+              <div class="device-ip">192.168.1.108</div>
+            </div>
+            <div class="device-online"></div>
+          </div>
+          <div class="device-item">
+            <div class="device-emoji">📡</div>
+            <div class="device-info">
+              <div class="device-name">Router</div>
+              <div class="device-ip">192.168.1.1</div>
+            </div>
+            <div class="device-online"></div>
+          </div>
+          <div class="device-item">
+            <div class="device-emoji">☁️</div>
+            <div class="device-info">
+              <div class="device-name">Amazon AWS</div>
+              <div class="device-ip">18.97.36.18</div>
+            </div>
+            <div class="device-online"></div>
+          </div>
+          <div class="device-item">
+            <div class="device-emoji">🐧</div>
+            <div class="device-info">
+              <div class="device-name">Canonical</div>
+              <div class="device-ip">91.189.91.98</div>
+            </div>
+            <div class="device-online"></div>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="live-filters">
+          <div class="live-filters-title">◈ FILTER ALERTS</div>
+          <button class="filter-btn active" onclick="filterAlerts('all', this)">📡 All Alerts</button>
+          <button class="filter-btn" onclick="filterAlerts('ssh', this)">🔐 SSH Only</button>
+          <button class="filter-btn" onclick="filterAlerts('arp', this)">⚠️ ARP Only</button>
+          <button class="filter-btn" onclick="filterAlerts('portscan', this)">🚨 Port Scans</button>
+          <button class="filter-btn" onclick="clearFeed()">🗑️ Clear Feed</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- How to run -->
+    <div class="live-howto reveal">
+      <div class="live-howto-title">◈ HOW TO ACTIVATE LIVE ALERTS</div>
+      <div class="howto-step">
+        <div class="howto-num">01</div>
+        <div>
+          <div class="howto-cmd">sudo python3 wireshark_ids.py</div>
+          <div class="howto-desc">Start live packet capture on wlp1s0</div>
+        </div>
+      </div>
+      <div class="howto-step">
+        <div class="howto-num">02</div>
+        <div>
+          <div class="howto-cmd">python3 app.py</div>
+          <div class="howto-desc">Start Flask server on port 5000</div>
+        </div>
+      </div>
+      <div class="howto-step">
+        <div class="howto-num">03</div>
+        <div>
+          <div class="howto-cmd">http://localhost:5000</div>
+          <div class="howto-desc">Open in browser — alerts appear automatically!</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+<div class="section-divider"></div>
+
+<!-- KEY CONCEPTS -->
+<section id="concepts">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">// 06 — glossary</div>
+      <h2 class="section-title">Key concepts</h2>
+      <p class="section-sub">Terms every cybersecurity student must know before working with IDS tools.</p>
+    </div>
+    <div class="concepts-grid reveal">
+      <div class="concept-card">
+        <div class="concept-term">IDS</div>
+        <div class="concept-def">Intrusion Detection System — monitors and alerts on suspicious activity.</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-term">HIDS</div>
+        <div class="concept-def">Host-based IDS — monitors one machine's own log files. Our project type.</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-term">NIDS</div>
+        <div class="concept-def">Network-based IDS — monitors live network traffic across all machines.</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-term">Wireshark</div>
+        <div class="concept-def">Network packet analyzer that captures and inspects live traffic in real time.</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-term">PyShark</div>
+        <div class="concept-def">Python wrapper for TShark — lets Python scripts analyze live network packets.</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-term">Signature</div>
+        <div class="concept-def">A known-bad pattern used to identify a known attack type.</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-term">Threshold</div>
+        <div class="concept-def">Minimum number of pattern hits before an alert fires.</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-term">False Positive</div>
+        <div class="concept-def">An alert fired for a normal, harmless event. Threshold reduces these.</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-term">False Negative</div>
+        <div class="concept-def">A real attack that the IDS missed. More dangerous than false positives.</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-term">ARP</div>
+        <div class="concept-def">Address Resolution Protocol — maps IP to MAC. Spoofing it is a common attack.</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-term">Regex</div>
+        <div class="concept-def">Regular expressions — pattern matching language used to search log lines.</div>
+      </div>
+      <div class="concept-card">
+        <div class="concept-term">Brute Force</div>
+        <div class="concept-def">Automated script trying thousands of passwords to break into a system.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  Built as a <strong>Cybersecurity Training Project</strong> — Custom Log-Based IDS + Wireshark Live IDS &nbsp;|&nbsp; Python 3 &nbsp;·&nbsp; Linux &nbsp;·&nbsp; VS Code &nbsp;·&nbsp; PyShark &nbsp;·&nbsp; Flask
+</footer>
+
+<script>
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// Clock
+function updateClock() {
+  document.getElementById('live-clock').textContent = new Date().toLocaleTimeString();
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Alert state
+let allAlerts = [];
+let currentFilter = 'all';
+
+// Fetch alerts from Flask
+async function fetchAlerts() {
+  try {
+    const res = await fetch('http://localhost:5000/api/alerts');
+    const data = await res.json();
+    allAlerts = data.alerts || [];
+    renderAlerts();
+    document.getElementById('alert-badge').textContent = allAlerts.length + ' ALERTS';
+  } catch(e) {
+    // Flask not running — show waiting message
+  }
+}
+
+async function fetchStats() {
+  try {
+    const res = await fetch('http://localhost:5000/api/stats');
+    const data = await res.json();
+    document.getElementById('stat-total').textContent = data.total || 0;
+    document.getElementById('stat-ssh').textContent = data.ssh || 0;
+    document.getElementById('stat-arp').textContent = data.arp || 0;
+    document.getElementById('stat-scan').textContent = data.portscan || 0;
+  } catch(e) {}
+}
+
+function renderAlerts() {
+  const feed = document.getElementById('alert-feed');
+  const filtered = currentFilter === 'all'
+    ? allAlerts
+    : allAlerts.filter(a => a.type === currentFilter);
+
+  if (filtered.length === 0) {
+    feed.innerHTML = '<div class="no-alerts-msg">◈ MONITORING NETWORK TRAFFIC...<br>No alerts for this filter yet.<br><br><span style="color:var(--green);font-size:10px;">python3 app.py</span></div>';
+    return;
+  }
+
+  feed.innerHTML = [...filtered].reverse().map(a => `
+    <div class="alert-item ${a.type}">
+      <span class="alert-icon">${a.icon}</span>
+      <span class="alert-text">${a.message}</span>
+    </div>
+  `).join('');
+}
+
+function filterAlerts(type, btn) {
+  currentFilter = type;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderAlerts();
+}
+
+function clearFeed() {
+  allAlerts = [];
+  renderAlerts();
+  document.getElementById('alert-badge').textContent = '0 ALERTS';
+}
+
+// Auto refresh every 3 seconds
+setInterval(() => { fetchAlerts(); fetchStats(); }, 3000);
+fetchAlerts();
+fetchStats();
+</script>
+</body>
+</html>

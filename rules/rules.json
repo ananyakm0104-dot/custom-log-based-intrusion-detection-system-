@@ -1,0 +1,38 @@
+[
+  {
+    "name": "SSH Brute Force",
+    "pattern": "Failed password",
+    "threshold": 3,
+    "severity": "HIGH"
+  },
+  {
+    "name": "SQL Injection Attempt",
+    "pattern": "UNION|SELECT|DROP TABLE|'--",
+    "threshold": 1,
+    "severity": "CRITICAL"
+  },
+  {
+    "name": "Unauthorized Sudo",
+    "pattern": "NOT in sudoers",
+    "threshold": 1,
+    "severity": "HIGH"
+  },
+  {
+    "name": "Directory Traversal",
+    "pattern": "(\\.\\./){2,}",
+    "threshold": 1,
+    "severity": "MEDIUM"
+  },
+  {
+    "name": "Root Login Attempt",
+    "pattern": "Invalid user root",
+    "threshold": 1,
+    "severity": "MEDIUM"
+  },
+  {
+    "name": "Port Scan",
+    "pattern": "Connection closed.*preauth",
+    "threshold": 5,
+    "severity": "MEDIUM"
+  }
+]
